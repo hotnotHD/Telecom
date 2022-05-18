@@ -1,0 +1,359 @@
+\subsection{Упражнение 1}
+
+Запустите и прослушайте примеры в файле chap03.ipynb. В примере с утечкой попробуйте заменить окно Хэмминга одним из других окон, предоставляемых NumPy, и посмотрите, как они влияют на утечку.
+
+Если длительность кратна периоду, то начало и конец отрезка совпадают, и мы получаем минимальную утечку.
+
+\begin{lstlisting}[language=Python]
+from thinkdsp import SinSignal
+
+signal = SinSignal(freq=440)
+duration = signal.period * 30
+wave = signal.make_wave(duration)
+wave.plot()
+decorate(xlabel='Time (s)')
+
+spectrum.plot(high=880)
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_01.png}
+		\caption{Рассматриваемый сигнал}
+	\end{center}
+\end{figure}
+
+\begin{lstlisting}[language=Python]
+spectrum = wave.make_spectrum()
+spectrum.plot(high=880)
+decorate(xlabel='Frequency (Hz)', ylabel='Amplitude')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_02.png}
+		\caption{Спектр рассматриваемого сигнала}
+	\end{center}
+\end{figure}
+
+Если продолжительность не кратна периоду, утечка довольно плохая.
+
+\begin{lstlisting}[language=Python]
+duration = signal.period * 30.25
+wave = signal.make_wave(duration)
+wave.plot()
+decorate(xlabel='Time (s)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_03.png}
+		\caption{Рассматриваемый сигнал}
+	\end{center}
+\end{figure}
+
+\begin{lstlisting}[language=Python]
+spectrum = wave.make_spectrum()
+spectrum.plot(high=880)
+decorate(xlabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_04.png}
+		\caption{Спектр рассматриваемого сигнала}
+	\end{center}
+\end{figure}
+
+Работа с окнами помогает (но обратите внимание, что она снижает общую энергию).
+
+\begin{lstlisting}[language=Python]
+wave.hamming()
+spectrum = wave.make_spectrum()
+spectrum.plot(high=880)
+decorate(xlabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_05.png}
+		\caption{Спектр сигнала с применение окна Хээминга}
+	\end{center}
+\end{figure}
+
+Если вы вслепую вычислите ДПФ непериодического сегмента, вы получите «размытие движения».
+
+\begin{lstlisting}[language=Python]
+signal = Chirp(start=220, end=440)
+wave = signal.make_wave(duration=1)
+spectrum = wave.make_spectrum()
+spectrum.plot(high=700)
+decorate(xlabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_06.png}
+		\caption{Спектр сигнала}
+	\end{center}
+\end{figure}
+
+Спектрограмма — это визуализация кратковременного ДПФ, позволяющая увидеть, как спектр меняется во времени.
+
+\begin{lstlisting}[language=Python]
+def plot_spectrogram(wave, seg_length):
+    """
+    """
+    spectrogram = wave.make_spectrogram(seg_length)
+    print('Time resolution (s)', spectrogram.time_res)
+    print('Frequency resolution (Hz)', spectrogram.freq_res)
+    spectrogram.plot(high=700)
+    decorate(xlabel='Time(s)', ylabel='Frequency (Hz)')
+    
+signal = Chirp(start=220, end=440)
+wave = signal.make_wave(duration=1, framerate=11025)
+plot_spectrogram(wave, 512)
+
+Time resolution (s) 0.046439909297052155
+Frequency resolution (Hz) 21.533203125
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_07.png}
+		\caption{КПФ сигнала}
+	\end{center}
+\end{figure}
+
+Если вы увеличите длину сегмента, вы получите лучшее разрешение по частоте, худшее разрешение по времени.
+
+\begin{lstlisting}[language=Python]
+plot_spectrogram(wave, 1024)
+
+Time resolution (s) 0.09287981859410431
+Frequency resolution (Hz) 10.7666015625
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_08.png}
+		\caption{КПФ измененного сигнала}
+	\end{center}
+\end{figure}
+
+Если вы уменьшите длину сегмента, вы получите лучшее временное разрешение, худшее разрешение по частоте.
+
+\begin{lstlisting}[language=Python]
+plot_spectrogram(wave, 256)
+
+Time resolution (s) 0.023219954648526078
+Frequency resolution (Hz) 43.06640625
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_09.png}
+		\caption{КПФ измененного сигнала}
+	\end{center}
+\end{figure}
+
+
+\subsection{Упражнение 2}
+
+
+Напишем класс SawtoothChirp
+
+\begin{lstlisting}[language=Python]
+from thinkdsp import Chirp
+from thinkdsp import normalize, unbias
+
+class SawtoothChirp(Chirp):
+
+    def evaluate(self, ts):
+        freqs = np.linspace(self.start, self.end, len(ts))
+        dts = np.diff(ts, prepend=0)
+        dphis = np.pi * 2 * freqs * dts
+        phases = np.cumsum(dphis)
+        cycles = phases / (np.pi * 2)
+        frac, _ = np.modf(cycles)
+        ys =  normalize(unbias(frac), self.amp)
+        return ys
+\end{lstlisting}
+
+Создадим сигнал
+
+\begin{lstlisting}[language=Python]
+sig = SawtoothChirp(100, 2000)
+w = sig.make_wave(duration = 6, framerate = 10000)
+w.apodize()
+w.make_audio()
+\end{lstlisting}
+
+Можем услышать биение, напечатаем эскиз спектрограммы
+
+\begin{lstlisting}[language=Python]
+sp = w.make_spectrogram(seg_length = 1000)
+sp.plot(high = 7000)
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_10.png}
+		\caption{КПФ сигнала}
+	\end{center}
+\end{figure}
+
+
+\subsection{Упражнение 3}
+
+Создаем пилообразный чирп с изменением от 2500 до 3000 Гц и посмотрим спектограму
+
+\begin{lstlisting}[language=Python]
+signal = SawtoothChirp(start=2500, end=3000)
+wave = signal.make_wave(duration=1, framerate=20000)
+wave.make_audio()
+
+wave.make_spectrum().plot()
+decorate(xlabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_11.png}
+		\caption{Спектр сигнала}
+	\end{center}
+\end{figure}
+
+\subsection{Упражнение 4}
+
+В музыкальной терминологии «глиссандо» — это нота, которая скользит от одной высоты тона к другой, поэтому она похожа на чириканье. Найдите или сделайте запись глиссандо и постройте его спектрограмму.
+
+Загрузим глиссандо и посмотрим спектограмму
+
+\begin{lstlisting}[language=Python]
+if not os.path.exists('411728__inspectorj__violin-glissando-ascending-a-h1.wav'):
+    !wget https://github.com/hotnotHD/Telecom/raw/main/411728__inspectorj__violin-glissando-ascending-a-h1.wav
+    
+from thinkdsp import read_wave
+
+wave = read_wave('411728__inspectorj__violin-glissando-ascending-a-h1.wav')
+wave.make_audio()
+
+wave.make_spectrogram(512).plot(high=5000)
+decorate(xlabel='Time (s)', ylabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_12.png}
+		\caption{Спектрограмма сигнала}
+	\end{center}
+\end{figure}
+
+
+\subsection{Упражнение 5}
+
+Тромбонист может играть глиссандо, выдвигая слайд тромбона и непрерывно дуя. По мере выдвижения ползуна общая длина трубки увеличивается, а результирующий шаг обратно пропорционален длине.
+Предполагая, что игрок перемещает слайд с постоянной скоростью, как меняется ли частота со временем?
+
+\noindent Напишите класс TromboneGliss, расширяющий класс Chirp и предоставляет evaluate. Создайте волну, имитирующую тромбон глиссандо от F3 вниз до C3 и обратно до F3. C3 — 262 Гц; F3 есть 349 Гц.
+
+Напишем класс TromboneGliss.
+
+\begin{lstlisting}[language=Python]
+class TromboneGliss(Chirp):
+        
+    def evaluate(self, ts):
+        l1, l2 = 1.0 / self.start, 1.0 / self.end
+        lengths = np.linspace(l1, l2, len(ts))
+        freqs = 1 / lengths
+        
+        dts = np.diff(ts, prepend=0)
+        dphis = np.pi * 2 * freqs * dts
+        phases = np.cumsum(dphis)
+        ys = self.amp * np.cos(phases)
+        return ys
+\end{lstlisting}
+
+Создадим сигнал, имитирующий глиссандо с 262 до 349 гц и обратно.
+
+\begin{lstlisting}[language=Python]
+sig1 = TromboneGliss(262, 349)
+w1 = sig1.make_wave(duration=1)
+sig2 = TromboneGliss(349, 262)
+w2 = sig2.make_wave(duration=1)
+w = w1 | w2
+w.make_audio()
+
+sp = w.make_spectrogram(1024)
+sp.plot(high=1000)
+decorate(xlabel='Time (s)', ylabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_13.png}
+		\caption{Спектрограмма сигнала}
+	\end{center}
+\end{figure}
+
+\subsection{Упражнение 6}
+
+
+\begin{lstlisting}[language=Python]
+if not os.path.exists('67713__tim-kahn__b.wav'):
+    !wget https://github.com/hotnotHD/Telecom/raw/main/67713__tim-kahn__b.wav
+    
+wave1 = read_wave('67713__tim-kahn__b.wav')
+wave.make_audio()
+
+if not os.path.exists('67714__tim-kahn__c.wav'):
+    !wget https://github.com/hotnotHD/Telecom/raw/main/67714__tim-kahn__c.wav
+    
+wave2 = read_wave('67714__tim-kahn__c.wav')
+wave2.make_audio()
+
+wave.make_spectrogram(1024).plot(high=1000)
+decorate(xlabel='Time (s)', ylabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_14.png}
+		\caption{Спектрограмма гласных звуков}
+	\end{center}
+\end{figure}
+
+Частоты звука "b"
+
+\begin{lstlisting}[language=Python]
+seg = wave.segment(start=0, duration=1)
+seg.make_spectrum().plot(high=1000)
+decorate(xlabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_15.png}
+		\caption{График частот для звука "b"}
+	\end{center}
+\end{figure}
+
+Частоты звука "c"
+
+\begin{lstlisting}[language=Python]
+seg2 = wave.segment(start=2, duration=3)
+seg2.make_spectrum().plot(high=1000)
+decorate(xlabel='Frequency (Hz)')
+\end{lstlisting}
+
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[scale=1]{fig/lab03/lab03_16.png}
+		\caption{График частот для звука "c"}
+	\end{center}
+\end{figure}
+
+\subsection{Вывод}
+
+В этой работе были расмотрены апериодические сигналы, частотные компоненты которых изменяются во времени. Также в этой главе были рассмотрены спектрограммы - способ визуализации апериодичных сигналов.
